@@ -228,6 +228,133 @@ from .general import (
 )
 from .plotting import Plotting as plotting
 
+### MERGE CONFLICT BEGIN
+from .. import __execution_engine__ as execution_engine
+
+# Set this so that Pandas doesn't try to multithread by itself
+os.environ["OMP_NUM_THREADS"] = "1"
+num_cpus = 1
+
+
+def initialize_ray():
+    import ray
+
+    """Initializes ray based on environment variables and internal defaults."""
+    if threading.current_thread().name == "MainThread":
+        import secrets
+
+        plasma_directory = None
+        cluster = os.environ.get("MODIN_RAY_CLUSTER", None)
+        redis_address = os.environ.get("MODIN_REDIS_ADDRESS", None)
+        redis_password = secrets.token_hex(16)
+        if cluster == "True" and redis_address is not None:
+            # We only start ray in a cluster setting for the head node.
+            ray.init(
+                include_webui=False,
+                ignore_reinit_error=True,
+                redis_address=redis_address,
+                redis_password=redis_password,
+                logging_level=100,
+            )
+        elif cluster is None:
+            object_store_memory = os.environ.get("MODIN_MEMORY", None)
+            if os.environ.get("MODIN_OUT_OF_CORE", "False").title() == "True":
+                from tempfile import gettempdir
+
+                plasma_directory = gettempdir()
+                # We may have already set the memory from the environment variable, we don't
+                # want to overwrite that value if we have.
+                if object_store_memory is None:
+                    # Round down to the nearest Gigabyte.
+                    mem_bytes = ray.utils.get_system_memory() // 10 ** 9 * 10 ** 9
+                    # Default to 8x memory for out of core
+                    object_store_memory = 8 * mem_bytes
+            # In case anything failed above, we can still improve the memory for Modin.
+            if object_store_memory is None:
+                # Round down to the nearest Gigabyte.
+                object_store_memory = int(
+                    0.6 * ray.utils.get_system_memory() // 10 ** 9 * 10 ** 9
+                )
+                # If the memory pool is smaller than 2GB, just use the default in ray.
+                if object_store_memory == 0:
+                    object_store_memory = None
+            else:
+                object_store_memory = int(object_store_memory)
+            ray.init(
+                include_webui=False,
+                ignore_reinit_error=True,
+                plasma_directory=plasma_directory,
+                object_store_memory=object_store_memory,
+                redis_address=redis_address,
+                redis_password=redis_password,
+                logging_level=100,
+                memory=object_store_memory,
+            )
+        # Register custom serializer for method objects to avoid warning message.
+        # We serialize `MethodType` objects when we use AxisPartition operations.
+        ray.register_custom_serializer(types.MethodType, use_pickle=True)
+
+        # Register a fix import function to run on all_workers including the driver.
+        # This is a hack solution to fix #647, #746
+        def move_stdlib_ahead_of_site_packages(*args):
+            site_packages_path = None
+            site_packages_path_index = -1
+            for i, path in enumerate(sys.path):
+                if sys.exec_prefix in path and path.endswith("site-packages"):
+                    site_packages_path = path
+                    site_packages_path_index = i
+                    # break on first found
+                    break
+
+            if site_packages_path is not None:
+                # stdlib packages layout as follows:
+                # - python3.x
+                #   - typing.py
+                #   - site-packages/
+                #     - pandas
+                # So extracting the dirname of the site_packages can point us
+                # to the directory containing standard libraries.
+                sys.path.insert(
+                    site_packages_path_index, os.path.dirname(site_packages_path)
+                )
+
+        move_stdlib_ahead_of_site_packages()
+        ray.worker.global_worker.run_function_on_all_workers(
+            move_stdlib_ahead_of_site_packages
+        )
+
+
+if execution_engine == "Ray":
+    import ray
+
+    initialize_ray()
+    num_cpus = ray.cluster_resources()["CPU"]
+elif execution_engine == "Dask":  # pragma: no cover
+    from distributed.client import get_client
+    import warnings
+
+    if threading.current_thread().name == "MainThread":
+        warnings.warn("The Dask Engine for Modin is experimental.")
+        try:
+            client = get_client()
+        except ValueError:
+            from distributed import Client
+            import multiprocessing
+
+            num_cpus = multiprocessing.cpu_count()
+            client = Client(n_workers=num_cpus)
+elif execution_engine == "MPI":
+    from modin.engines.mpi4py import _get_global_executor
+    import multiprocessing
+
+    num_cpus = multiprocessing.cpu_count()
+    _get_global_executor()
+elif execution_engine != "Python":
+    raise ImportError("Unrecognized execution engine: {}.".format(execution_engine))
+
+DEFAULT_NPARTITIONS = max(4, int(num_cpus))
+### MERGE CONFLICT END
+
 __all__ = [
     "DataFrame",
     "Series",
