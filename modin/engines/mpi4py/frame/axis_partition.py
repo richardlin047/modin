@@ -1,10 +1,10 @@
 from modin.engines.base.frame.axis_partition import PandasFrameAxisPartition
 from .partition import PandasOnMPIFramePartition
-from modin import __execution_engine__
+# from modin import __execution_engine__
 
-if __execution_engine__ == "MPI":
-    from modin.engines.mpi4py import _get_global_executor
-    from concurrent.futures import Future
+# if __execution_engine__ == "MPI":
+from modin.engines.mpi4py import _get_global_executor
+from concurrent.futures import Future
 
 
 class PandasOnMPIFrameAxisPartition(PandasFrameAxisPartition):
@@ -15,8 +15,8 @@ class PandasOnMPIFrameAxisPartition(PandasFrameAxisPartition):
         self.list_of_blocks = [obj.future for obj in list_of_blocks]
 
     partition_type = PandasOnMPIFramePartition
-    if __execution_engine__ == "MPI":
-        instance_type = Future
+    # if __execution_engine__ == "MPI":
+    instance_type = Future
 
     @classmethod
     def deploy_axis_func(

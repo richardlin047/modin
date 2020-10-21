@@ -1,9 +1,9 @@
 from modin.engines.base.frame.data import BasePandasFrame
 from .partition_manager import MPIFrameManager
-from modin import __execution_engine__
+# from modin import __execution_engine__
 
-if __execution_engine__ == "MPI":
-    from modin.engines.mpi4py import _get_global_executor
+# if __execution_engine__ == "MPI":
+from modin.engines.mpi4py import _get_global_executor
 
 
 class PandasOnMPIFrame(BasePandasFrame):

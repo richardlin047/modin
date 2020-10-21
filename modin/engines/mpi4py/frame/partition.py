@@ -2,11 +2,11 @@ import pandas
 
 from modin.engines.base.frame.partition import BaseFramePartition
 from modin.data_management.utils import length_fn_pandas, width_fn_pandas
-from modin import __execution_engine__
+# from modin import __execution_engine__
 
-if __execution_engine__ == "MPI":
-    from modin.engines.mpi4py import _get_global_executor
-    from concurrent.futures import Future
+# if __execution_engine__ == "MPI":
+from modin.engines.mpi4py import _get_global_executor
+from concurrent.futures import Future
 
 
 def apply_list_of_funcs(funcs, df):
