@@ -187,6 +187,17 @@ class PandasOnDaskFactory(BaseFactory):
 
         cls.io_cls = PandasOnDaskIO
 
+class PandasOnMPIFactory(BaseFactory):
+    @classmethod
+    def prepare(cls):
+        """
+        Fills in .io_cls class attribute lazily
+        """
+        from modin.engines.mpi4py.io import PandasOnMPIIO
+        # from modin.engines.dask.pandas_on_dask.io import PandasOnMPIIO
+
+        cls.io_cls = PandasOnMPIIO
+
 
 class ExperimentalBaseFactory(BaseFactory):
     @classmethod

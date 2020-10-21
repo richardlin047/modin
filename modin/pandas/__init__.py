@@ -168,6 +168,15 @@ def _update_engine(publisher: Parameter):
 
         get_connection().modules["modin"].set_backends("Python")
 
+    # TODO: Add MPI as choice
+    elif publisher.get() == "MPI":
+        # raise ImportError("WE ARE IN MPI CASE")+
+        from modin.engines.mpi4py import _get_global_executor
+        import multiprocessing
+
+        num_cpus = multiprocessing.cpu_count()
+        _get_global_executor()
+
     elif publisher.get() not in _NOINIT_ENGINES:
         raise ImportError("Unrecognized execution engine: {}.".format(publisher.get()))
 

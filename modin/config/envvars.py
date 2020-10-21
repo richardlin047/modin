@@ -45,19 +45,33 @@ class IsDebug(EnvironmentVariable, type=bool):
 
     varname = "MODIN_DEBUG"
 
-
+# TODO: Add engine here
 class Engine(EnvironmentVariable, type=str):
     """
     Distribution engine to run queries by
     """
 
     varname = "MODIN_ENGINE"
-    choices = ("Ray", "Dask", "Python")
+    choices = ("Ray", "Dask", "Python", "MPI")
 
     @classmethod
     def _get_default(cls):
         if IsDebug.get():
             return "Python"
+        # TODO: Remove else and move import later
+        try:
+            import mpi4py
+        except ImportError:
+            raise ImportError(
+                "Trying to import mpi4py, not working"
+            )
+        else:
+            return "MPI"
+        # else:
+        #     raise ImportError(
+        #         "Woo, we imported mpi4py!"
+        #     )
+
         try:
             import ray
 
