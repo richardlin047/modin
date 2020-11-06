@@ -187,7 +187,7 @@ class PandasOnDaskFactory(BaseFactory):
 
         cls.io_cls = PandasOnDaskIO
 
-class PandasOnMPIFactory(BaseFactory):
+class PandasOnMpiFactory(BaseFactory):
     @classmethod
     def prepare(cls):
         """
