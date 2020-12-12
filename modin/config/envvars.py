@@ -52,7 +52,7 @@ class Engine(EnvironmentVariable, type=str):
     """
 
     varname = "MODIN_ENGINE"
-    choices = ("Ray", "Dask", "Python", "MPI")
+    choices = ("Ray", "Dask", "Python", "Mpi")
 
     @classmethod
     def _get_default(cls):
@@ -66,11 +66,7 @@ class Engine(EnvironmentVariable, type=str):
                 "Trying to import mpi4py, not working"
             )
         else:
-            return "MPI"
-        # else:
-        #     raise ImportError(
-        #         "Woo, we imported mpi4py!"
-        #     )
+            return "Mpi"
 
         try:
             import ray
