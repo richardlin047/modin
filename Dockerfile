@@ -8,7 +8,8 @@ RUN yum -y update \
 
 # Set pip alias
 RUN echo 'alias pip=pip3' >> /root/.bashrc \
-&& source /root/.bashrc
+&& source /root/.bashrc \
+&& python3 -m pip install -U pip
 
 # Install mpi4py
 RUN wget https://bitbucket.org/mpi4py/mpi4py/downloads/mpi4py-3.0.3.tar.gz \
@@ -19,4 +20,7 @@ RUN wget https://bitbucket.org/mpi4py/mpi4py/downloads/mpi4py-3.0.3.tar.gz \
 
 # Install git and get modin repo
 RUN yum -y install git \
-&& git clone https://github.com/richardlin047/modin.git
+&& git clone https://github.com/richardlin047/modin.git \
+&& cd modin \
+&& pip install -r requirements.txt \
+&& pip install -e .
