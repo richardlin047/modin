@@ -22,34 +22,28 @@ class PandasOnMPIFrameAxisPartition(PandasFrameAxisPartition):
     def deploy_axis_func(
         cls, axis, func, num_splits, kwargs, maintain_partitioning, *partitions
     ):
-        # client = _get_global_executor()
-        # deploy_axis_func needs DataFrames or Series as partitions, but args are futures
-        partitions = [p.result() for p in partitions]
-        axis_result = PandasFrameAxisPartition.deploy_axis_func(
+        client = _get_global_executor()
+        axis_result = client.submit(
+            PandasFrameAxisPartition.deploy_axis_func,
             axis,
             func,
             num_splits,
             kwargs,
             maintain_partitioning,
-            *partitions)
-        # axis_result = client.submit(
-        #     PandasFrameAxisPartition.deploy_axis_func,
-        #     axis,
-        #     func,
-        #     num_splits,
-        #     kwargs,
-        #     maintain_partitioning,
-        #     *partitions,
+            *partitions,
 
-        # )
-        # can't index on futures, so just pass whole future
-        return axis_result
-        # if num_splits == 1:
-        #     return axis_result
+        )
+
+        # TODO: Possibly handle num_splits = 1
+        if num_splits == 1:
+            return axis_result
         # # We have to do this to split it back up. It is already split, but we need to
         # # get futures for each.
+        return [axis_result.result()[i] for i in range(num_splits)]
+
+        # fixes original bug, but stuck on different bug so decided to block on axis_result
         # return [
-        #     client.submit(lambda l: l[i], axis_result)
+        #     client.submit(lambda l: l.result()[i], axis_result)
         #     for i in range(num_splits)
         # ]
 

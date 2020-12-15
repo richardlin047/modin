@@ -169,6 +169,8 @@ class PandasFrameAxisPartition(BaseFrameAxisPartition):
             )
         args = [self.axis, func, num_splits, kwargs, maintain_partitioning]
         args.extend(self.list_of_blocks)
+        # _wrap_partitions only works if it's actually on 1:1 partitions to future
+        # not 1 future to a list of partitions.
         return self._wrap_partitions(self.deploy_axis_func(*args))
 
     def shuffle(self, func, lengths, **kwargs):
@@ -214,6 +216,7 @@ class PandasFrameAxisPartition(BaseFrameAxisPartition):
         manual_partition = kwargs.pop("manual_partition", False)
         lengths = kwargs.pop("_lengths", None)
 
+        partitions = [p.result() for p in partitions]
         dataframe = pandas.concat(list(partitions), axis=axis, copy=False)
         result = func(dataframe, **kwargs)
         if isinstance(result, pandas.Series):
