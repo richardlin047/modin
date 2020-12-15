@@ -80,12 +80,12 @@ def _future_init(self):
 
 Future.__init__ = _future_init
 MPI.pickle.__init__(cloudpickle.dumps, cloudpickle.loads)
-
+Executor = MPIPoolExecutor(main=False)
 
 def _get_global_executor():
     import multiprocessing
-    executor = MPIPoolExecutor(main=False)
-    return executor
+    # executor = MPIPoolExecutor(main=False)
+    return Executor
 
 
 __all__ = ["_get_global_executor"]
