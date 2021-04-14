@@ -1,11 +1,76 @@
+import time
+import timeit
+import ray
 import modin.pandas as pd
 from modin.config import NPartitions
-
+import s3fs
 def get_ips(df):
     ips = [part.ip() for row in df._query_compiler._modin_frame._partitions for part in row]
     return ips
 
+def run_map_reduce(df):
+    counts = []
+    for function in [df.groupby('passenger_count').count, df.groupby('passenger_count').sum, df.groupby('passenger_count').prod, df['passenger_count'].any, df.memory_usage]:
+        count = time_operation(lambda : function)
+        counts.append(count)
+    print('The above MAP_REDUCE operation took approximately,', counts, "seconds")
+
+def run_map(df):
+    counts = []
+    #for function in [df.isna, df.applymap(lambda x: sum(x)), lambda : df.replace(0,5)]:
+    for function in [df.isna, lambda : df.replace(0,5), df['trip_id'].abs, lambda: df.isin([1,2])]:
+        count = time_operation(function)
+        counts.append(count)
+    print('The above MAP operation took approximately,', counts, "seconds")
+
+def run_reduce(df):
+    counts = []
+    #for function in [df.isna, df.applymap(lambda x: sum(x)), lambda : df.replace(0,5)]:
+    #df['trip_id'].to_datetime]
+    for function in [df['trip_id'].median, df.nunique,df['trip_id'].std, df['trip_id'].var]:
+        count = time_operation(function)
+        counts.append(count)
+    print('The above REDUCE operation took approximately,', counts, "seconds")
+
+def run_fold(df):
+    counts = []
+    #NOTE putting this sleep seemed to eliminate the column mismatch issue
+    #time.sleep(16)
+    #for function in [df.isna, df.applymap(lambda x: sum(x)), lambda : df.replace(0,5)]:
+    #df['trip_id'].to_datetime]
+    for function in [df['trip_id'].rolling(2).count, df['trip_id'].rolling(2).sum,df['trip_id'].rolling(2).mean]:
+        count = time_operation(function)
+        counts.append(count)
+    print('The above FOLD operation took approximately,', counts, "seconds")
+
+def run_binary(df):
+    counts = []
+    #NOTE putting this sleep seemed to eliminate the column mismatch issue
+    #time.sleep(16)
+    #for function in [df.isna, df.applymap(lambda x: sum(x)), lambda : df.replace(0,5)]:
+    #df['trip_id'].to_datetime]
+    for function in [df['trip_id'].add(1), df['trip_id'].sub(1),df['trip_id'].mul(2),df['trip_id'].eq(2),df['trip_id'].pow(3)]:
+        count = time_operation(lambda : function)
+        counts.append(count)
+    print('The above BINARY operation took approximately,', counts, "seconds")
+
+def time_operation(function_call):
+    times = []
+    # NOTE that we're only doing 1 iteration rn since it caches the operation
+    for i in range(5):
+        start1 = timeit.default_timer()
+        function_call()
+        val = timeit.default_timer() - start1
+        times.append(val)
+        break
+    return sum(times)/len(times)
+
 if __name__=="__main__":
+    ray.init(address="auto")
+    print('''This cluster consists of
+    {} nodes in total
+    {} CPU resources in total
+    '''.format(len(ray.nodes()), ray.cluster_resources()['CPU']))
     # TODO: Set number of partitions if needed
     # NPartitions.put(5)
     columns_names = [
@@ -27,7 +92,10 @@ if __name__=="__main__":
     print(f"Partition shape before: {df._query_compiler._modin_frame._partitions.shape}")
     print(f"IPs before: {get_ips(df)}")
 
-    # Returns np.array of column partitions
+
+    print(f"IPs Inter: {get_ips(df)}")
+
+# Returns np.array of column partitions
     parts = df._query_compiler._modin_frame._frame_mgr_cls.map_axis_partitions(
         0,
         df._query_compiler._modin_frame._partitions,
@@ -36,15 +104,15 @@ if __name__=="__main__":
         lengths=[df.shape[0]],
         # keep_partitioning should be False, True maintains original lengths
         keep_partitioning=False,
-    )
+        )
     # Uncomment to repartition into full row partitions
-    # parts = df._query_compiler._modin_frame._frame_mgr_cls.map_axis_partitions(
-    #     1,
-    #     parts,
-    #     lambda df: df,
-    #     # the lengths are correct
-    #     lengths=[df.shape[1]],
-    # )
+    parts = df._query_compiler._modin_frame._frame_mgr_cls.map_axis_partitions(
+            1,
+            parts,
+            lambda df: df,
+            # the lengths are correct
+            lengths=[df.shape[1]],
+            )
 
     # create modin frame
     frame = df._query_compiler._modin_frame.__constructor__(
@@ -60,6 +128,11 @@ if __name__=="__main__":
     df = pd.DataFrame(
         query_compiler=qc
     )
-
+    print(df.head())
+    run_map_reduce(df)
+    run_map(df)
+    run_reduce(df)
+    run_fold(df)
+    run_binary(df)
     print(f"Partition shape after: {df._query_compiler._modin_frame._partitions.shape}")
     print(f"IPs after: {get_ips(df)}")
