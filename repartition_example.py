@@ -11,16 +11,18 @@ def get_ips(df):
 def run_map_reduce(df):
     counts = []
     for function in [df.groupby('passenger_count').count, df.groupby('passenger_count').sum, df.groupby('passenger_count').prod, df['passenger_count'].any, df.memory_usage]:
-        count = time_operation(lambda : function)
+        count = time_operation(lambda : function, df)
         counts.append(count)
+    return counts
     print('The above MAP_REDUCE operation took approximately,', counts, "seconds")
 
 def run_map(df):
     counts = []
     #for function in [df.isna, df.applymap(lambda x: sum(x)), lambda : df.replace(0,5)]:
     for function in [df.isna, lambda : df.replace(0,5), df['trip_id'].abs, lambda: df.isin([1,2])]:
-        count = time_operation(function)
+        count = time_operation(function,df)
         counts.append(count)
+    return counts
     print('The above MAP operation took approximately,', counts, "seconds")
 
 def run_reduce(df):
@@ -28,8 +30,9 @@ def run_reduce(df):
     #for function in [df.isna, df.applymap(lambda x: sum(x)), lambda : df.replace(0,5)]:
     #df['trip_id'].to_datetime]
     for function in [df['trip_id'].median, df.nunique,df['trip_id'].std, df['trip_id'].var]:
-        count = time_operation(function)
+        count = time_operation(function,df)
         counts.append(count)
+    return counts
     print('The above REDUCE operation took approximately,', counts, "seconds")
 
 def run_fold(df):
@@ -38,9 +41,11 @@ def run_fold(df):
     #time.sleep(16)
     #for function in [df.isna, df.applymap(lambda x: sum(x)), lambda : df.replace(0,5)]:
     #df['trip_id'].to_datetime]
+    #breakpoint()
     for function in [df['trip_id'].rolling(2).count, df['trip_id'].rolling(2).sum,df['trip_id'].rolling(2).mean]:
-        count = time_operation(function)
+        count = time_operation(function,df)
         counts.append(count)
+    return counts
     print('The above FOLD operation took approximately,', counts, "seconds")
 
 def run_binary(df):
@@ -50,16 +55,18 @@ def run_binary(df):
     #for function in [df.isna, df.applymap(lambda x: sum(x)), lambda : df.replace(0,5)]:
     #df['trip_id'].to_datetime]
     for function in [df['trip_id'].add(1), df['trip_id'].sub(1),df['trip_id'].mul(2),df['trip_id'].eq(2),df['trip_id'].pow(3)]:
-        count = time_operation(lambda : function)
+        count = time_operation(lambda : function, df)
         counts.append(count)
+    return counts
     print('The above BINARY operation took approximately,', counts, "seconds")
 
-def time_operation(function_call):
+def time_operation(function_call,df):
     times = []
     # NOTE that we're only doing 1 iteration rn since it caches the operation
     for i in range(5):
         start1 = timeit.default_timer()
-        function_call()
+        print(function_call())
+        print(df)
         val = timeit.default_timer() - start1
         times.append(val)
         break
@@ -96,19 +103,19 @@ if __name__=="__main__":
     print(f"IPs Inter: {get_ips(df)}")
 
 # Returns np.array of column partitions
-    parts = df._query_compiler._modin_frame._frame_mgr_cls.map_axis_partitions(
-        0,
-        df._query_compiler._modin_frame._partitions,
-        lambda df: df,
-        # the lengths are correct, don't split up column
-        lengths=[df.shape[0]],
-        # keep_partitioning should be False, True maintains original lengths
-        keep_partitioning=False,
-        )
+    #parts = df._query_compiler._modin_frame._frame_mgr_cls.map_axis_partitions(
+    #    0,
+    #    df._query_compiler._modin_frame._partitions,
+    #    lambda df: df,
+    #    # the lengths are correct, don't split up column
+    #    lengths=[df.shape[0]],
+    #    # keep_partitioning should be False, True maintains original lengths
+    #    keep_partitioning=False,
+    #    )
     # Uncomment to repartition into full row partitions
     parts = df._query_compiler._modin_frame._frame_mgr_cls.map_axis_partitions(
             1,
-            parts,
+            df._query_compiler._modin_frame._partitions,
             lambda df: df,
             # the lengths are correct
             lengths=[df.shape[1]],
@@ -129,10 +136,18 @@ if __name__=="__main__":
         query_compiler=qc
     )
     print(df.head())
-    run_map_reduce(df)
-    run_map(df)
-    run_reduce(df)
-    run_fold(df)
-    run_binary(df)
+    count1 = run_map_reduce(df)
+    count2 = run_map(df)
+    count3 = run_reduce(df)
+
+    #count4 = run_fold(df)
+    count4 = 0
+    count5 = run_binary(df)
+    print(count1)
+    print(count2)
+    print(count3)
+    print(count4)
+    print(count5)
+    #print(count1,count2,count3,count4,count5)
     print(f"Partition shape after: {df._query_compiler._modin_frame._partitions.shape}")
     print(f"IPs after: {get_ips(df)}")
