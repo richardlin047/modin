@@ -173,6 +173,9 @@ class TextFileDispatcher(FileDispatcher):
 
         if nrows:
             read_rows_counter = 0
+            # Why max num_partitions? num_partitions seems to be if partitions is big and file size is small
+            # Could just read on one worker
+            # TODO: Why not use compute_chunksize? because we don't have the df?
             partition_size = max(1, num_partitions, nrows // num_partitions)
             while f.tell() < file_size and read_rows_counter < nrows:
                 if read_rows_counter + partition_size > nrows:
@@ -377,6 +380,7 @@ class TextFileDispatcher(FileDispatcher):
         dtypes_ids = []
         for start, end in splits:
             partition_kwargs.update({"start": start, "end": end})
+            # only deploys 1 worker
             partition_id = cls.deploy(
                 cls.parse, partition_kwargs.get("num_splits") + 2, partition_kwargs
             )

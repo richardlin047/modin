@@ -22,6 +22,7 @@ from typing import Union, Sequence, Callable, Dict, Tuple
 from pandas._typing import FilePathOrBuffer
 
 from modin.config import NPartitions
+import numpy as np
 
 ReadCsvKwargsType = Dict[
     str, Union[str, int, bool, dict, object, Sequence, Callable, Dialect, None]
@@ -119,10 +120,11 @@ class CSVDispatcher(TextFileDispatcher):
             compression=compression_infered,
             index_col=index_col,
         )
-
+        # num_partitions used for both columns and rows
         with cls.file_open(filepath_or_buffer_md, "rb", compression_infered) as f:
             splits = cls.partitioned_file(
                 f,
+                # num_partitions=1,
                 num_partitions=num_partitions,
                 nrows=kwargs.get("nrows", None),
                 skiprows=skiprows,
@@ -146,6 +148,23 @@ class CSVDispatcher(TextFileDispatcher):
             skipfooter=kwargs.get("skipfooter", None),
             parse_dates=kwargs.get("parse_dates", False),
         )
+        # expected_axis_partitions = (
+        #     df._query_compiler._modin_frame._frame_mgr_cls.axis_partition(
+        #         df._query_compiler._modin_frame._partitions, 0
+        #     )
+        # )
+        # axis_partitions = np.array([new_query_compiler._modin_frame._frame_mgr_cls.axis_partition(
+        #         new_query_compiler._modin_frame._partitions, 0
+        #     )])
+        # # __constructor__ takes in a modin_frame, axis_partitions is list of AxisPartitions
+        # new_query_compiler = new_query_compiler.__constructor__(
+        #     new_query_compiler._modin_frame.__constructor__(
+        #         axis_partitions,
+        #         new_query_compiler.index,
+        #         new_query_compiler.columns,
+        #         column_widths=column_widths,
+        #     )
+        # )
         return new_query_compiler
 
     # _read helper functions

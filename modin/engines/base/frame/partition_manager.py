@@ -357,6 +357,7 @@ class BaseFrameManager(ABC):
         if apply_indices is None:
             apply_indices = np.arange(len(left_partitions))
 
+        # Splitting up the partitions happens in the apply?
         result_blocks = np.array(
             [
                 left_partitions[i].apply(
